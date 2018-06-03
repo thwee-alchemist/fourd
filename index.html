@@ -16,8 +16,8 @@
         height: 350
       });
 
-      var SIZE = 10;
-      var cube = {cube: {size: 10, color: 0x000000}};
+      var SIZE = 5;
+      var vertex = {/*cube: {size: 5, color: 0x000000},*/ label: {text: 'Hello, Worlds!', size: 10}};
 
       var depths = [];
       for(var k=0; k<SIZE; k++){
@@ -25,7 +25,7 @@
           for(var i=0; i<SIZE; i++){
               var column = [];
               for(var j=0; j<SIZE; j++){
-                  column.push(fourd.graph.add_vertex(cube));
+                  column.push(fourd.graph.add_vertex(vertex));
                   if(j>0){
                       fourd.graph.add_edge(column[j], column[j-1]);
                   }

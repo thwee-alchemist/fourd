@@ -1,3 +1,36 @@
+/*
+  Joshua Marshall Moore
+  moore.joshua@pm.me
+  
+  June 2nd, 2018
+  
+  This is the refactored version of FourD.js. It features class based syntax, 
+  which makes the entire thing a little easier to read. Where the previous 
+  version relied on composition to include all THREE.js objects, this version 
+  relies on inheritance. This version relies on Object.assign() for sane 
+  option and default handling. 
+  
+  Dependencies: 
+  * mrdoob's three.js
+    currently working with r90
+  * OrbitControls.js
+  
+  Usage:
+  ```
+    <div id="display"></div>
+  
+    var fourd = new FourD();
+    $('#display').append(fourd.renderer.domElement);
+    
+    var v1 = fourd.graph.add_vertex({cube: {}});
+    var v2 = fourd.graph.add_vertex({cube: {}});
+    
+    var e = fourd.graph.add_edge(v1, v2);
+  ```
+  
+  
+*/
+
 
 var CONSTANTS = {
   scene: {
@@ -9,11 +42,19 @@ var CONSTANTS = {
     background: 0xffffff,
     camera_distance: -50,
   },
-  vertex: {
+  cube: {
     size: 10,
     color: 0x000000,
     wireframe: false,
     texture: undefined
+  },
+  label: {
+    font: 'Arial',
+    size: 10,
+    distance: 10,
+    text: undefined,
+    background_rgba: 'white',
+    color_rgba: 'black'
   },
   edge: {
     strength: 1.0
@@ -32,7 +73,7 @@ var CONSTANTS = {
 
 class Cube extends THREE.Mesh {
   constructor(options){    
-    var settings = Object.assign(CONSTANTS.vertex, options);
+    var settings = Object.assign(CONSTANTS.cube, options);
 
     var geometry = new THREE.BoxGeometry(
       settings.size,
@@ -68,9 +109,45 @@ class Cube extends THREE.Mesh {
   }
 }
 
-class Vertex extends THREE.Group{
+
+class Label extends THREE.Sprite {
+  constructor(options){
+    var settings = Object.assign(CONSTANTS.label, options);
+    
+    var canvas = document.createElement('canvas');
+    var context = canvas.getContext('2d');
+    
+    context.font = settings.size + "px " + settings.font;
+    
+    var metrics = context.measureText(settings.text);
+    context.fillStyle = settings.background_rgba;
+    context.fillRect(0, 0, metrics.width, metrics.height);
+    
+    context.fillStyle = settings.color_rgba;    
+    context.fillText(settings.text, 0, settings.size);
+    
+    var texture = new THREE.Texture(canvas);
+    texture.needsUpdate = true;
+    
+    var material = new THREE.SpriteMaterial({
+      map: texture, 
+      useScreenCoordinates: false
+    });
+    super(material);
+    this.scale.set(10, 10, 1.0);
+    
+    this.position.set(metrics.width/2, settings.distance, 0);
+    
+    return this;
+  }
+}
+
+
+class Vertex extends THREE.Group {
   constructor(options){
     super();
+    this.settings = options;
+    
     this.matrixAutoUpdate = true;
 
     this.position.set(
@@ -82,26 +159,22 @@ class Vertex extends THREE.Group{
     this.velocity = new THREE.Vector3();
     this.acceleration = new THREE.Vector3();
     
-    this.settings = Object.assign(CONSTANTS.vertex, options);
-    
     if(this.settings.cube){
       var cube = new Cube(this.settings.cube);
       this.add(cube);
       cube.vertex = this;
     }
     
-    if(this.settings.label){
+    if(this.settings.label && this.settings.label.text){
       var label = new Label(this.settings.label);
       this.add(label);
+      label.position.set(0, this.settings.label.distance, 0);
+      
       label.vertex = this;
     }
     
     this.edges = new Set();
     return this;
-  }
-  
-  paint(scene){
-    scene.add(this);
   }
 }
 
@@ -140,10 +213,6 @@ class Edge extends THREE.Line {
   prepare_destruction(){
     this.source.edges.delete(this);
     this.target.edges.delete(this);
-  }
-  
-  paint(scene){
-    scene.add(this);
   }
 }
 
@@ -262,14 +331,14 @@ class Graph extends THREE.Scene{
   
   add_vertex(options){
     var vertex = new Vertex(options);
-    vertex.paint(this);
-    this.V.add(vertex);
+    this.add(vertex); // draw to scene
+    this.V.add(vertex); 
     return vertex;
   }
     
   add_edge(source, target, options){
     var edge = new Edge(source, target, options);
-    edge.paint(this);
+    this.add(edge); // draw to scene
     this.E.add(edge);
     return edge;
   }
@@ -415,7 +484,7 @@ class FourD{
       intersects = raycaster.intersectObjects(this.scene.children, true);
 
       if(intersects.length > 0){
-        return intersects[0].object.vertex;
+        return intersects[0].vertex;
       }else{
         return null;
       }
